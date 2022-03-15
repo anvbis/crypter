@@ -5,12 +5,10 @@
 #ifndef CRYPTER_INJECT_H
 #define CRYPTER_INJECT_H
 
+#include <windows.h>
 #include "unpack.h"
 
 /* ... */
-int inject_classic(pe_data_t *pe_data);
-
-/* ... */
-int inject_reflective(pe_data_t *pe_data);
+int pe_data_inject(pe_data_t *pe_data, unsigned long pid);
 
 #endif /* CRYPTER_INJECT_H */
