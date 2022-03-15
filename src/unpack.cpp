@@ -62,8 +62,10 @@ void pe_data_decrypt(pe_data_t *pe_data, std::string key)
 
 void pe_data_free(pe_data_t *pe_data)
 {
+    /* free bytes allocated when reading pe file into memory */
     free(pe_data->bytes);
 
+    /* zero-out fields for potential re-use */
     pe_data->bytes = NULL;
     pe_data->size = 0;
 }
