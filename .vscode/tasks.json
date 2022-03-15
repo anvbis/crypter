@@ -1,0 +1,27 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"type": "cppbuild",
+			"label": "C/C++: g++.exe build active file",
+			"command": "g++.exe",
+			"args": [
+				"-I",
+				"${workspaceFolder}\\include",
+				"-o",
+				"${workspaceFolder}\\bin\\${fileBasenameNoExtension}.exe",
+				"${file}",
+				"${workspaceFolder}\\src\\inject.cpp",
+				"${workspaceFolder}\\src\\unpack.cpp"
+			],
+			"options": {
+				"cwd": "${fileDirname}"
+			},
+			"problemMatcher": [
+				"$msCompile"
+			],
+			"group": "build",
+			"detail": "compiler: g++.exe"
+		}
+	]
+}
