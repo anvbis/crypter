@@ -10,7 +10,7 @@ int pe_data_read(pe_data_t *pe_data, std::string filename)
 {
     /* open the file */
     std::ifstream ifs;
-    ifs.open(filename);
+    ifs.open(filename, std::ios::in | std::ios::binary);
     if (ifs.fail()) {
         return 1;
     }
@@ -30,6 +30,17 @@ int pe_data_read(pe_data_t *pe_data, std::string filename)
 
 int pe_data_write(pe_data_t *pe_data, std::string filename)
 {
+    /* open the file */
+    std::ofstream ofs;
+    ofs.open(filename, std::ios::out | std::ios::binary);
+    if (ofs.fail()) {
+        return 1;
+    }
+
+    /* write the data to file */
+    ofs.write(pe_data->bytes, pe_data->size);
+
+    ofs.close();
     return 0;
 }
 
