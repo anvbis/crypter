@@ -12,7 +12,7 @@ int pe_data_read(pe_data_t *pe_data, std::string filename)
     std::ifstream ifs;
     ifs.open(filename, std::ios::in | std::ios::binary);
     if (ifs.fail()) {
-        return 1;
+        return 0;
     }
 
     /* find the size of the file */
@@ -25,7 +25,7 @@ int pe_data_read(pe_data_t *pe_data, std::string filename)
     ifs.read(pe_data->bytes, pe_data->size);
 
     ifs.close();
-    return 0;
+    return 1;
 }
 
 int pe_data_write(pe_data_t *pe_data, std::string filename)
@@ -34,14 +34,14 @@ int pe_data_write(pe_data_t *pe_data, std::string filename)
     std::ofstream ofs;
     ofs.open(filename, std::ios::out | std::ios::binary);
     if (ofs.fail()) {
-        return 1;
+        return 0;
     }
 
     /* write the data to file */
     ofs.write(pe_data->bytes, pe_data->size);
 
     ofs.close();
-    return 0;
+    return 1;
 }
 
 void pe_data_encrypt(pe_data_t *pe_data, std::string key)
@@ -58,4 +58,12 @@ void pe_data_decrypt(pe_data_t *pe_data, std::string key)
     for (size_t i = 0; i < pe_data->size; ++i) {
         pe_data->bytes[i] = pe_data->bytes[i] ^ key[i % key.length()];
     }
+}
+
+void pe_data_free(pe_data_t *pe_data)
+{
+    free(pe_data->bytes);
+
+    pe_data->bytes = NULL;
+    pe_data->size = 0;
 }

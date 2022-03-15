@@ -25,4 +25,7 @@ void pe_data_encrypt(pe_data_t *pe_data, std::string key);
 /* ... */
 void pe_data_decrypt(pe_data_t *pe_data, std::string key);
 
+/* ... */
+void pe_data_free(pe_data_t *pe_data);
+
 #endif /* CRYPTER_UNPACK_H */
