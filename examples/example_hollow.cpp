@@ -2,7 +2,7 @@
  * example_inject.cpp
  **/
 
-#include <iostream>
+#include "unpack.h"
 #include "hollow.h"
 
 int main(int argc, char **argv)

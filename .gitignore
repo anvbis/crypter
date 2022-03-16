@@ -1,3 +1,4 @@
 bin/*.exe
 data/sample.enc.exe
 data/sample.dec.exe
+data/shell.enc.exe
