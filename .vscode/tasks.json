@@ -11,8 +11,7 @@
 				"-o",
 				"${workspaceFolder}\\bin\\${fileBasenameNoExtension}.exe",
 				"${file}",
-				"${workspaceFolder}\\src\\unpack.cpp",
-				"${workspaceFolder}\\src\\hollow.cpp"
+				"${workspaceFolder}\\src\\crypter.cpp"
 			],
 			"options": {
 				"cwd": "${fileDirname}"

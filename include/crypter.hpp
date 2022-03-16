@@ -1,9 +1,9 @@
 /**
- * unpack.h
- **/
+ * crypter.hpp
+ */
 
-#ifndef CRYPTER_UNPACK_H
-#define CRYPTER_UNPACK_H
+#ifndef CRYPTER_HPP
+#define CRYPTER_HPP
 
 #include <string>
 
@@ -25,7 +25,10 @@ void pe_data_encrypt(pe_data_t *pe_data, std::string key);
 /* decrypts pe data using repeating key xor */
 void pe_data_decrypt(pe_data_t *pe_data, std::string key);
 
+/* ... */
+int pe_data_inject(pe_data_t *pe_data, char *target);
+
 /* frees memory allocated when reading pe data */
 void pe_data_free(pe_data_t *pe_data);
 
-#endif /* CRYPTER_UNPACK_H */
+#endif /* CRYPTER_HPP */
