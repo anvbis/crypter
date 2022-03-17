@@ -3,7 +3,7 @@
 	"tasks": [
 		{
 			"type": "cppbuild",
-			"label": "C: gcc.exe build active file",
+			"label": "C/C++: g++.exe build active file",
 			"command": "g++.exe",
 			"args": [
 				"-I",
@@ -20,7 +20,7 @@
 				"$msCompile"
 			],
 			"group": "build",
-			"detail": "compiler: gcc.exe"
+			"detail": "compiler: g++.exe"
 		}
 	]
 }
