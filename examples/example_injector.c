@@ -2,18 +2,21 @@
  * example_injector.c
  */
 
-#include "packer.h"
-#include "injector.h"
+#include <stdio.h>
+#include "crypter.h"
 
 int main(int argc, char **argv)
 {
-    packer_t packer;
-    packer_init(&packer, "data/sample.exe");
+    pe_data_t packer;
+    if (!pe_data_read(&packer, "data/sample.exe")) {
+        return 1;
+    }
 
-    injector_t injector;
-    injector_init(&injector, packer.bytes, packer.length);
-    injector_exec(&injector, "C:\\Windows\\explorer.exe");
+    if (!pe_data_inject(&packer, "C:\\Windows\\explorer.exe")) {
+        printf("what\n");
+        return 1;
+    }
     
-    packer_free(&packer);
+    pe_data_free(&packer);
     return 0;
 }

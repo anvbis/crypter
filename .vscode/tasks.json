@@ -4,15 +4,14 @@
 		{
 			"type": "cppbuild",
 			"label": "C: gcc.exe build active file",
-			"command": "gcc.exe",
+			"command": "g++.exe",
 			"args": [
 				"-I",
 				"${workspaceFolder}\\include",
 				"-o",
 				"${workspaceFolder}\\bin\\${fileBasenameNoExtension}.exe",
 				"${file}",
-				"${workspaceFolder}\\src\\packer.c",
-				"${workspaceFolder}\\src\\injector.c"
+				"${workspaceFolder}\\src\\crypter.cpp"
 			],
 			"options": {
 				"cwd": "${fileDirname}"
