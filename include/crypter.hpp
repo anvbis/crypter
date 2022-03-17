@@ -7,34 +7,28 @@
 
 #include <string>
 
-namespace crypter {
-    /* stores portable executable data */
-    typedef struct {
-        char *bytes;
-        size_t size;
-    } pe_data_t;
+/* stores portable executable data */
+typedef struct {
+    char *bytes;
+    size_t size;
+} pe_data_t;
 
-    /* reads pe data into memory */
-    int init(pe_data_t *pe, std::string filename);
+/* reads pe data into memory */
+int pe_data_read(pe_data_t *pe_data, std::string filename);
 
-    /* write pe data out into file */
-    int write(pe_data_t *pe, std::string filename);
+/* writes pe data out into file */
+int pe_data_write(pe_data_t *pe_data, std::string filename);
 
-    namespace encrypt {
-        /* encrypts pe data using repeating key xor */
-        void xor(pe_data_t *pe, std::string key);
-    }
+/* encrypts pe data using repeating key xor */
+void pe_data_encrypt(pe_data_t *pe_data, std::string key);
 
-    namespace decrypt {
-        /* decrypts pe data using repeating key xor */
-        void xor(pe_data_t *pe, std::string key);
-    }
+/* decrypts pe data using repeating key xor */
+void pe_data_decrypt(pe_data_t *pe_data, std::string key);
 
-    /* executes pe via process hollowing */
-    int inject(pe_data_t *pe, std::string target);
+/* ... */
+int pe_data_inject(pe_data_t *pe_data, char *target);
 
-    /* frees memory allocated when reading pe data */
-    void free(pe_data_t *pe);
-}
+/* frees memory allocated when reading pe data */
+void pe_data_free(pe_data_t *pe_data);
 
 #endif /* CRYPTER_HPP */

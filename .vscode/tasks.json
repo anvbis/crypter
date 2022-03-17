@@ -3,15 +3,16 @@
 	"tasks": [
 		{
 			"type": "cppbuild",
-			"label": "C/C++: g++.exe build active file",
-			"command": "g++.exe",
+			"label": "C: gcc.exe build active file",
+			"command": "gcc.exe",
 			"args": [
 				"-I",
 				"${workspaceFolder}\\include",
 				"-o",
 				"${workspaceFolder}\\bin\\${fileBasenameNoExtension}.exe",
 				"${file}",
-				"${workspaceFolder}\\src\\crypter.cpp"
+				"${workspaceFolder}\\src\\packer.c",
+				"${workspaceFolder}\\src\\injector.c"
 			],
 			"options": {
 				"cwd": "${fileDirname}"
@@ -20,7 +21,7 @@
 				"$msCompile"
 			],
 			"group": "build",
-			"detail": "compiler: g++.exe"
+			"detail": "compiler: gcc.exe"
 		}
 	]
 }
