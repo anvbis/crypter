@@ -3,22 +3,22 @@
  **/
 
 #include <iostream>
-#include "packer.hpp"
+#include "loader.hpp"
 
 int main(int argc, char **argv)
 {   
-    packer_t packer;
-    if (!packer_read_file(&packer, "data/sample.exe")) {
+    loader_t loader;
+    if (!loader_read_file(&loader, "data/sample.exe")) {
         std::cerr << "error: unable to read target exe" << std::endl;
         return 1;
     }
 
-    packer_encrypt(&packer);
-    if (!packer_write_stub(&packer, "stub")) {
+    loader_encrypt(&loader);
+    if (!loader_write_stub(&loader, "stub")) {
         std::cerr << "error: unable to write stub file" << std::endl;
         return 1;
     }
 
-    packer_free(&packer);
+    loader_free(&loader);
     return 0;
 }

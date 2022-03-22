@@ -11,7 +11,7 @@
 				"-o",
 				"${workspaceFolder}\\bin\\${fileBasenameNoExtension}.exe",
 				"${file}",
-				"${workspaceFolder}\\src\\packer.cpp"
+				"${workspaceFolder}\\src\\loader.cpp"
 			],
 			"options": {
 				"cwd": "${fileDirname}"

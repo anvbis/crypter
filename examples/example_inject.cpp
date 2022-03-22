@@ -2,17 +2,17 @@
  * example_inject.cpp
  **/
 
-#include "packer.hpp"
+#include "loader.hpp"
 
 int main(int argc, char **argv)
 {
     /* read pe data into memory */
-    packer_t packer;
-    packer_read_file(&packer, "data/sample.exe");
+    loader_t loader;
+    loader_read_file(&loader, "data/sample.exe");
 
     /* inject pe via process hollowing */
-    packer_inject(&packer, "C:/Windows/explorer.exe");
+    loader_inject(&loader, "C:/Windows/explorer.exe");
 
-    packer_free(&packer);
+    loader_free(&loader);
     return 0;
 }
