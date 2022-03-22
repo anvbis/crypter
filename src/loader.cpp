@@ -45,6 +45,7 @@ int proc_unmap_view_of_section(proc_t *proc, unsigned long addr);
 
 int loader_read_file(loader_t *loader, const std::string &filename)
 {
+    loader->key = (char *)malloc(sizeof(char) * KEY_SIZE);
     srand(time(0));
     for (int i = 0; i < KEY_SIZE; ++i) {
         loader->key[i] = (char)rand();
@@ -79,8 +80,10 @@ int loader_read_stub(loader_t *loader, const std::string &filename)
     loader->size = ifs.tellg();
     ifs.seekg(0, std::ios::beg);
 
-    loader->bytes = (char*)malloc(sizeof(char) * (loader->size));
+    loader->key = (char *)malloc(sizeof(char) * KEY_SIZE);
     ifs.read(loader->key, KEY_SIZE);
+
+    loader->bytes = (char*)malloc(sizeof(char) * (loader->size));
     ifs.read(loader->bytes, loader->size - KEY_SIZE);
 
     ifs.close();
@@ -205,6 +208,7 @@ int proc_init(proc_t *proc, const std::string &target)
     /* start the target process in a suspended state */
     if (!CreateProcessA(target.c_str(), NULL, NULL, NULL, false,
             CREATE_SUSPENDED, NULL, NULL, &proc->startup_info, &proc->info)) {
+        std::cout << GetLastError() << std::endl;
 		return 0;
 	}
 

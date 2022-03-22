@@ -7,10 +7,10 @@
 
 #include <string>
 
-#define KEY_SIZE 256
+#define KEY_SIZE 1024
 
 typedef struct loader {
-    char key[KEY_SIZE];
+    char *key;
     char *bytes;
     size_t size;
 } loader_t;

@@ -6,12 +6,14 @@
 
 int main(int argc, char **argv)
 {
-    /* read pe data into memory */
     loader_t loader;
-    loader_read_file(&loader, "data/sample.exe");
+    if (!loader_read_file(&loader, "data/sample.exe")) {
+        return 1;
+    }
 
-    /* inject pe via process hollowing */
-    loader_inject(&loader, "C:/Windows/explorer.exe");
+    if (!loader_inject(&loader, "c:/windows/system32/svchost.exe")) {
+        return 1;
+    }
 
     loader_free(&loader);
     return 0;

