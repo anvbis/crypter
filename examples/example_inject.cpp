@@ -8,7 +8,7 @@ int main(int argc, char **argv)
 {
     /* read pe data into memory */
     packer_t packer;
-    packer_read(&packer, "C:/Users/steph/Documents/GitHub/crypter/data/sample.exe");
+    packer_read_file(&packer, "data/sample.exe");
 
     /* inject pe via process hollowing */
     packer_inject(&packer, "C:/Windows/explorer.exe");

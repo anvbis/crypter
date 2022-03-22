@@ -5,6 +5,7 @@
 #include <iostream>
 #include <fstream>
 #include <cstdlib>
+#include <time.h>
 #include <windows.h>
 #include "packer.hpp"
 
@@ -42,8 +43,13 @@ int proc_unmap_view_of_section(proc_t *proc, unsigned long long addr);
 int proc_unmap_view_of_section(proc_t *proc, unsigned long addr);
 #endif
 
-int packer_read(packer_t *packer, const std::string &filename)
+int packer_read_file(packer_t *packer, const std::string &filename)
 {
+    srand(time(0));
+    for (int i = 0; i < KEY_SIZE; ++i) {
+        packer->key[i] = (char)rand();
+    }
+
     std::ifstream ifs;
     ifs.open(filename, std::ios::in | std::ios::binary);
     if (ifs.fail()) {
@@ -61,7 +67,27 @@ int packer_read(packer_t *packer, const std::string &filename)
     return 1;
 }
 
-int packer_write(packer_t *packer, const std::string &filename)
+int packer_read_stub(packer_t *packer, const std::string &filename)
+{
+    std::ifstream ifs;
+    ifs.open(filename, std::ios::in | std::ios::binary);
+    if (ifs.fail()) {
+        return 0;
+    }
+
+    ifs.seekg(0, std::ios::end);
+    packer->size = ifs.tellg();
+    ifs.seekg(0, std::ios::beg);
+
+    packer->bytes = (char*)malloc(sizeof(char) * (packer->size));
+    ifs.read(packer->key, KEY_SIZE);
+    ifs.read(packer->bytes, packer->size - KEY_SIZE);
+
+    ifs.close();
+    return 1;
+}
+
+int packer_write_file(packer_t *packer, const std::string &filename)
 {
     std::ofstream ofs;
     ofs.open(filename, std::ios::out | std::ios::binary);
@@ -75,17 +101,32 @@ int packer_write(packer_t *packer, const std::string &filename)
     return 1;
 }
 
-void packer_encrypt(packer_t *packer, const std::string &key)
+int packer_write_stub(packer_t *packer, const std::string &filename)
+{
+    std::ofstream ofs;
+    ofs.open(filename, std::ios::out | std::ios::binary);
+    if (ofs.fail()) {
+        return 0;
+    }
+
+    ofs.write(packer->key, KEY_SIZE);
+    ofs.write(packer->bytes, packer->size);
+
+    ofs.close();
+    return 1;
+}
+
+void packer_encrypt(packer_t *packer)
 {
     for (size_t i = 0; i < packer->size; ++i) {
-        packer->bytes[i] = packer->bytes[i] ^ key[i % key.length()];
+        packer->bytes[i] = packer->bytes[i] ^ packer->key[i % KEY_SIZE];
     }
 }
 
-void packer_decrypt(packer_t *packer, const std::string &key)
+void packer_decrypt(packer_t *packer)
 {
     for (size_t i = 0; i < packer->size; ++i) {
-        packer->bytes[i] = packer->bytes[i] ^ key[i % key.length()];
+        packer->bytes[i] = packer->bytes[i] ^ packer->key[i % KEY_SIZE];
     }
 }
 

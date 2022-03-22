@@ -21,6 +21,24 @@
 			],
 			"group": "build",
 			"detail": "compiler: g++.exe"
+		},
+		{
+			"type": "process",
+			"label": "C/C++: upx.exe pack file",
+			"command": "upx.exe",
+			"args": [
+				"--best",
+				"--brute",
+				"${workspaceFolder}\\bin\\${fileBasenameNoExtension}.exe"
+			],
+			"options": {
+				"cwd": "${fileDirname}"
+			},
+			"problemMatcher": [
+				"$msCompile"
+			],
+			"group": "build",
+			"detail": "packer: g++.exe"
 		}
 	]
 }
