@@ -6,12 +6,15 @@
 			"label": "C/C++: g++.exe build active file",
 			"command": "g++.exe",
 			"args": [
-				"-I",
-				"${workspaceFolder}\\include",
+				"-s",
+				"-I${workspaceFolder}\\include",
+				"-L${workspaceFolder}\\lib",
 				"-o",
 				"${workspaceFolder}\\bin\\${fileBasenameNoExtension}.exe",
 				"${file}",
-				"${workspaceFolder}\\src\\loader.cpp"
+				"${workspaceFolder}\\src\\loader.cpp",
+				"${workspaceFolder}\\src\\aes.cpp",
+				"${workspaceFolder}\\src\\miniz.cpp"
 			],
 			"options": {
 				"cwd": "${fileDirname}"

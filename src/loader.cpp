@@ -5,8 +5,9 @@
 #include <iostream>
 #include <fstream>
 #include <cstdlib>
-#include <time.h>
 #include <windows.h>
+#include "aes.hpp"
+#include "miniz.hpp"
 #include "loader.hpp"
 
 typedef long (*unmap_view_fn)(void *, void *);
@@ -43,94 +44,18 @@ int proc_unmap_view_of_section(proc_t *proc, unsigned long long addr);
 int proc_unmap_view_of_section(proc_t *proc, unsigned long addr);
 #endif
 
-int loader_read_file(loader_t *loader, const std::string &filename)
-{
-    loader->key = (char *)malloc(sizeof(char) * KEY_SIZE);
-    srand(time(0));
-    for (int i = 0; i < KEY_SIZE; ++i) {
-        loader->key[i] = (char)rand();
-    }
-
-    std::ifstream ifs;
-    ifs.open(filename, std::ios::in | std::ios::binary);
-    if (ifs.fail()) {
-        return 0;
-    }
-
-    ifs.seekg(0, std::ios::end);
-    loader->size = ifs.tellg();
-    ifs.seekg(0, std::ios::beg);
-
-    loader->bytes = (char*)malloc(sizeof(char) * (loader->size));
-    ifs.read(loader->bytes, loader->size);
-
-    ifs.close();
-    return 1;
-}
-
-int loader_read_stub(loader_t *loader, const std::string &filename)
-{
-    std::ifstream ifs;
-    ifs.open(filename, std::ios::in | std::ios::binary);
-    if (ifs.fail()) {
-        return 0;
-    }
-
-    ifs.seekg(0, std::ios::end);
-    loader->size = ifs.tellg();
-    ifs.seekg(0, std::ios::beg);
-
-    loader->key = (char *)malloc(sizeof(char) * KEY_SIZE);
-    ifs.read(loader->key, KEY_SIZE);
-
-    loader->bytes = (char*)malloc(sizeof(char) * (loader->size));
-    ifs.read(loader->bytes, loader->size - KEY_SIZE);
-
-    ifs.close();
-    return 1;
-}
-
-int loader_write_file(loader_t *loader, const std::string &filename)
-{
-    std::ofstream ofs;
-    ofs.open(filename, std::ios::out | std::ios::binary);
-    if (ofs.fail()) {
-        return 0;
-    }
-
-    ofs.write(loader->bytes, loader->size);
-
-    ofs.close();
-    return 1;
-}
-
-int loader_write_stub(loader_t *loader, const std::string &filename)
-{
-    std::ofstream ofs;
-    ofs.open(filename, std::ios::out | std::ios::binary);
-    if (ofs.fail()) {
-        return 0;
-    }
-
-    ofs.write(loader->key, KEY_SIZE);
-    ofs.write(loader->bytes, loader->size);
-
-    ofs.close();
-    return 1;
-}
-
-void loader_encrypt(loader_t *loader)
-{
-    for (size_t i = 0; i < loader->size; ++i) {
-        loader->bytes[i] = loader->bytes[i] ^ loader->key[i % KEY_SIZE];
-    }
-}
-
 void loader_decrypt(loader_t *loader)
 {
-    for (size_t i = 0; i < loader->size; ++i) {
-        loader->bytes[i] = loader->bytes[i] ^ loader->key[i % KEY_SIZE];
-    }
+    struct AES_ctx ctx;
+    AES_init_ctx_iv(&ctx, (const uint8_t *)loader->key, (const uint8_t *)loader->key);
+    AES_CBC_decrypt_buffer(&ctx, (uint8_t *)loader->bytes, loader->size);
+
+    char *data = (char *)malloc(loader->orig_size);
+    uncompress((unsigned char *)data, (mz_ulong *)&loader->orig_size, (const unsigned char *)loader->bytes, loader->size);
+
+    free(loader->bytes);
+    loader->bytes = data;
+    loader->size = loader->orig_size;
 }
 
 int loader_inject(loader_t *loader, const std::string &target)

